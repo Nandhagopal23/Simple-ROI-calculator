@@ -96,7 +96,8 @@
 
   <h2 style="margin-top:20px">Result</h2>
   <div class="result-card">
-    <div id="result">(no result yet)</div>
+  <div id="result">(no result yet)</div>
+  <div id="chart" style="margin-top:12px"></div>
   </div>
 
   <template id="scenario-template">
@@ -156,6 +157,9 @@
       const inputs = readInputs();
       const ok = validateInputs(inputs);
       if (!ok.ok) { alert('Please enter a value for: ' + ok.missing); return; }
+      // show loading state
+      const btn = document.getElementById('calc');
+      btn.disabled = true; btn.textContent = 'Calculating...';
       const req = {
         scenario_name: inputs.scenario_name,
         monthly_invoice_volume: parseInt(inputs.monthly_invoice_volume),
@@ -172,9 +176,11 @@
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify(req)
       });
-      if (!res.ok) { alert('Simulation failed: ' + res.status); return; }
+      if (!res.ok) { alert('Simulation failed: ' + res.status); btn.disabled=false; btn.textContent='Calculate'; return; }
       const json = await res.json();
       renderResult(json);
+      renderChart(json, inputs.time_horizon_months);
+      btn.disabled=false; btn.textContent='Calculate';
     }
     document.getElementById('calc').addEventListener('click', calc);
 
@@ -220,6 +226,43 @@
         </div>
       `;
       document.getElementById('result').innerHTML = html;
+    }
+
+    function renderChart(json, months) {
+      months = parseInt(months) || 12;
+      const container = document.getElementById('chart');
+      container.innerHTML = '';
+      // simple projection: monthly_savings constant per month
+      const monthly = json.monthly_savings || 0;
+      const width = 600, height = 140, padding = 20;
+      const svgNS = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(svgNS, 'svg');
+      svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      svg.style.width = '100%';
+      svg.style.height = '140px';
+      const maxVal = monthly * months;
+      for (let i=0;i<Math.min(months,24);i++) {
+        const barW = (width - padding*2) / Math.min(months,24) - 4;
+        const x = padding + i*(barW+4);
+        const h = maxVal ? (monthly/ (maxVal) * (height - padding*2)) * months : 0;
+        const y = height - padding - h;
+        const rect = document.createElementNS(svgNS,'rect');
+        rect.setAttribute('x', x);
+        rect.setAttribute('y', y);
+        rect.setAttribute('width', barW);
+        rect.setAttribute('height', Math.max(0,h));
+        rect.setAttribute('fill','#4f46e5');
+        svg.appendChild(rect);
+      }
+      // label
+      const txt = document.createElementNS(svgNS,'text');
+      txt.setAttribute('x', padding);
+      txt.setAttribute('y', 14);
+      txt.setAttribute('fill','#333');
+      txt.setAttribute('font-size','12');
+      txt.textContent = 'Projected monthly savings (first 24 months)';
+      svg.appendChild(txt);
+      container.appendChild(svg);
     }
 
     function renderScenarios(arr) {
