@@ -1,0 +1,183 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Invoicing ROI Simulator</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;max-width:700px;margin:40px auto;padding:10px}
+    label{display:block;margin-top:8px}
+    input{width:200px}
+    button{margin-top:12px}
+    pre{background:#f6f6f6;padding:10px}
+  </style>
+</head>
+<body>
+  <h1>Invoicing ROI Simulator</h1>
+  <p>Fill the form and click Calculate. Save scenarios and generate an email-gated HTML report.</p>
+
+  <label>Scenario name
+    <input id="scenario_name" type="text" placeholder="Q4_Pilot" />
+  </label>
+
+  <label>Monthly invoice volume
+    <input id="monthly_invoice_volume" type="number" placeholder="e.g. 2000" />
+  </label>
+
+  <label>Number of AP staff
+    <input id="num_ap_staff" type="number" placeholder="e.g. 3" />
+  </label>
+
+  <label>Avg hours per invoice (e.g. 0.17 = 10 minutes)
+    <input id="avg_hours_per_invoice" type="number" step="0.01" placeholder="e.g. 0.17" />
+  </label>
+
+  <label>Hourly wage
+    <input id="hourly_wage" type="number" placeholder="e.g. 30" />
+  </label>
+
+  <label>Manual error rate (%)
+    <input id="error_rate_manual" type="number" step="0.01" placeholder="e.g. 0.5" />
+  </label>
+
+  <label>Error cost per incident
+    <input id="error_cost" type="number" placeholder="e.g. 100" />
+  </label>
+
+  <label>Time horizon (months)
+    <input id="time_horizon_months" type="number" placeholder="e.g. 36" />
+  </label>
+
+  <label>One-time implementation cost
+    <input id="one_time_implementation_cost" type="number" placeholder="e.g. 50000" />
+  </label>
+
+  <div style="margin-top:12px">
+    <button id="calc">Calculate</button>
+    <button id="save">Save scenario</button>
+    <button id="list">List scenarios</button>
+  </div>
+
+  <h2>Generate Report (email required)</h2>
+  <label>Email for report
+    <input id="report_email" type="email" placeholder="you@company.com" />
+  </label>
+  <button id="download_report">Generate & Download Report</button>
+
+  <h2>Result</h2>
+  <pre id="result">(no result yet)</pre>
+
+  <h2>Saved Scenarios</h2>
+  <pre id="scenarios">(none)</pre>
+
+  <script>
+    function readInputs() {
+      return {
+        scenario_name: document.getElementById('scenario_name').value || null,
+        monthly_invoice_volume: document.getElementById('monthly_invoice_volume').value,
+        num_ap_staff: document.getElementById('num_ap_staff').value,
+        avg_hours_per_invoice: document.getElementById('avg_hours_per_invoice').value,
+        hourly_wage: document.getElementById('hourly_wage').value,
+        error_rate_manual: document.getElementById('error_rate_manual').value,
+        error_cost: document.getElementById('error_cost').value,
+        time_horizon_months: document.getElementById('time_horizon_months').value,
+        one_time_implementation_cost: document.getElementById('one_time_implementation_cost').value
+      };
+    }
+
+    function validateInputs(values) {
+      const required = ['monthly_invoice_volume','num_ap_staff','avg_hours_per_invoice','hourly_wage','time_horizon_months','one_time_implementation_cost'];
+      for (const k of required) {
+        const v = values[k];
+        if (v === null || v === undefined || String(v).trim() === '') {
+          return {ok:false, missing:k};
+        }
+      }
+      return {ok:true};
+    }
+
+    async function calc() {
+      const inputs = readInputs();
+      const ok = validateInputs(inputs);
+      if (!ok.ok) { alert('Please enter a value for: ' + ok.missing); return; }
+      const req = {
+        scenario_name: inputs.scenario_name,
+        monthly_invoice_volume: parseInt(inputs.monthly_invoice_volume),
+        num_ap_staff: parseInt(inputs.num_ap_staff),
+        avg_hours_per_invoice: parseFloat(inputs.avg_hours_per_invoice),
+        hourly_wage: parseFloat(inputs.hourly_wage),
+        error_rate_manual: parseFloat(inputs.error_rate_manual || 0),
+        error_cost: parseFloat(inputs.error_cost || 0),
+        time_horizon_months: parseInt(inputs.time_horizon_months),
+        one_time_implementation_cost: parseFloat(inputs.one_time_implementation_cost)
+      };
+      const res = await fetch('/simulate', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(req)
+      });
+      if (!res.ok) { alert('Simulation failed: ' + res.status); return; }
+      const json = await res.json();
+      document.getElementById('result').textContent = JSON.stringify(json, null, 2);
+    }
+    document.getElementById('calc').addEventListener('click', calc);
+
+    async function saveScenario() {
+      const inputs = readInputs();
+      const ok = validateInputs(inputs);
+      if (!ok.ok) { alert('Please fill the required field: ' + ok.missing); return; }
+      const payload = {
+        name: document.getElementById('scenario_name').value || ('scenario_' + Date.now()),
+        payloadJson: JSON.stringify({
+          monthly_invoice_volume: parseInt(inputs.monthly_invoice_volume),
+          num_ap_staff: parseInt(inputs.num_ap_staff),
+          avg_hours_per_invoice: parseFloat(inputs.avg_hours_per_invoice),
+          hourly_wage: parseFloat(inputs.hourly_wage),
+          error_rate_manual: parseFloat(inputs.error_rate_manual || 0),
+          error_cost: parseFloat(inputs.error_cost || 0),
+          time_horizon_months: parseInt(inputs.time_horizon_months),
+          one_time_implementation_cost: parseFloat(inputs.one_time_implementation_cost)
+        })
+      };
+      const res = await fetch('/scenarios', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+      if (!res.ok) { alert('Save failed: ' + res.status); return; }
+      const json = await res.json();
+      alert('Saved: ' + json.id);
+    }
+    document.getElementById('save').addEventListener('click', saveScenario);
+
+    async function listScenarios() {
+      const res = await fetch('/scenarios');
+      const arr = await res.json();
+      document.getElementById('scenarios').textContent = JSON.stringify(arr, null, 2);
+    }
+    document.getElementById('list').addEventListener('click', listScenarios);
+
+    document.getElementById('download_report').addEventListener('click', async () => {
+      const email = document.getElementById('report_email').value;
+      if (!email) { alert('Please enter an email'); return; }
+      const inputs = readInputs();
+      const ok = validateInputs(inputs);
+      if (!ok.ok) { alert('Please fill the required field: ' + ok.missing); return; }
+      const simReq = {
+        scenario_name: inputs.scenario_name,
+        monthly_invoice_volume: parseInt(inputs.monthly_invoice_volume),
+        num_ap_staff: parseInt(inputs.num_ap_staff),
+        avg_hours_per_invoice: parseFloat(inputs.avg_hours_per_invoice),
+        hourly_wage: parseFloat(inputs.hourly_wage),
+        error_rate_manual: parseFloat(inputs.error_rate_manual || 0),
+        error_cost: parseFloat(inputs.error_cost || 0),
+        time_horizon_months: parseInt(inputs.time_horizon_months),
+        one_time_implementation_cost: parseFloat(inputs.one_time_implementation_cost)
+      };
+      const payload = { email: email, scenario_name: inputs.scenario_name || 'scenario', simulationRequest: simReq };
+      const res = await fetch('/report/generate', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+      if (!res.ok) { alert('Report generation failed: ' + res.status); return; }
+      const html = await res.text();
+      // open report in new window as HTML
+      const w = window.open('', '_blank');
+      w.document.write(html);
+      w.document.close();
+    });
+  </script>
+</body>
+</html>
