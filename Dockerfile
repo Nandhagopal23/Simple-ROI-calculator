@@ -1,26 +1,26 @@
-# Multi-stage Dockerfile: build with Maven, run on Eclipse Temurin JRE 21
-FROM maven:3.9.4-eclipse-temurin-21 AS builder
+## Multi-stage Dockerfile for building and running the Spring Boot app
+# Build stage: use Maven with Temurin JDK 21 to compile and create the fat jar
+FROM maven:3.9.4-eclipse-temurin-21 AS build
 WORKDIR /workspace
 
-# Copy Maven wrapper and pom early to leverage layer caching
-COPY pom.xml mvnw ./
-COPY .mvn .mvn
-
-# Copy sources
+# Copy pom and wrapper first for better caching
+COPY pom.xml mvnw .mvn/ ./
 COPY src ./src
 
-# Build the application (skip tests for faster image builds by default)
-RUN mvn -B -DskipTests package
+RUN chmod +x mvnw || true
+RUN ./mvnw -DskipTests package -e
 
+# Runtime stage: smaller JRE image
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
-# Copy the built jar from the builder stage. Adjust name if your artifactId/version differ.
-COPY --from=builder /workspace/target/invoicing-roi-simulator-0.0.1-SNAPSHOT.jar /app/app.jar
-
-ENV SPRING_OUTPUT_ANSI_ENABLED=ALWAYS \
-    JAVA_OPTS=""
+# Copy the repackaged jar from the build stage
+ARG JAR_FILE=target/invoicing-roi-simulator-0.0.1-SNAPSHOT.jar
+COPY --from=build /workspace/${JAR_FILE} /app/app.jar
 
 EXPOSE 8080
 
-ENTRYPOINT ["sh","-c","java $JAVA_OPTS -jar /app/app.jar"]
+# Allow platform to pass JVM options via JAVA_OPTS env var
+ENV JAVA_OPTS=""
+
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]
