@@ -1,0 +1,7 @@
+[build]
+  # Create env.js at build time from Netlify env vars and publish the static folder
+  command = "bash -lc 'echo \"window._env_={API_BASE_URL:\\\"$API_BASE_URL\\\"};\" > src/main/resources/static/env.js'"
+  publish = "src/main/resources/static"
+
+[dev]
+  command = ""
