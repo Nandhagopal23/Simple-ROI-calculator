@@ -45,7 +45,9 @@ public class ApiController {
             return n.doubleValue();
         }
         String s = o.toString().trim();
-        if (s.isEmpty()) return 0.0;
+        if (s.isEmpty()) {
+            return 0.0;
+        }
         try {
             return Double.parseDouble(s);
         } catch (NumberFormatException e) {
@@ -58,5 +60,3 @@ public class ApiController {
         }
     }
 }
-
-

@@ -4,43 +4,122 @@
   <meta charset="utf-8" />
   <title>Invoicing ROI Simulator</title>
   <style>
-    :root{--accent:#0066cc;--muted:#666;--card:#f9f9fb}
-    body{font-family:Inter,Segoe UI,Arial,Helvetica,sans-serif;max-width:920px;margin:28px auto;padding:20px;color:#222}
-    h1{color:var(--accent);margin-bottom:6px}
-    p{color:var(--muted);margin-top:0}
-    .grid{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}
-    .form{background:#fff;padding:18px;border-radius:8px;box-shadow:0 6px 18px rgba(12,24,40,0.06)}
-    .controls{display:flex;gap:10px;flex-wrap:wrap}
-    label{display:block;margin-top:12px;color:#333;font-size:14px}
-    input{width:100%;padding:8px;border:1px solid #ddd;border-radius:6px}
-    button{background:var(--accent);color:#fff;border:none;padding:9px 12px;border-radius:6px;cursor:pointer}
-    button.secondary{background:#f3f4f6;color:#111;border:1px solid #e6e7ea}
-    .panel{background:var(--card);padding:14px;border-radius:8px}
-    .result-card{background:#fff;padding:14px;border-radius:8px;box-shadow:0 4px 12px rgba(12,24,40,0.04)}
+    :root{
+      --accent:#375bd2;
+      --accent-2:#6c7bff;
+      --muted:#6b7280;
+      --card:rgba(255,255,255,0.7);
+      --glass-border:rgba(255,255,255,0.5);
+      --bg-1:#0f172a; /* deep navy */
+      --bg-2:#071129; /* darkest */
+    }
+
+    /* Page background: subtle gradient + soft floating blobs */
+    html,body{height:100%}
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family:Inter, 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial;
+      color:#0f172a;
+      background: radial-gradient(1200px 600px at 10% 10%, rgba(99,102,241,0.08), transparent 8%),
+                  radial-gradient(900px 500px at 90% 90%, rgba(59,130,246,0.06), transparent 10%),
+                  linear-gradient(180deg, rgba(9,30,66,1) 0%, rgba(16,24,38,1) 100%);
+      display:flex;
+      align-items:flex-start;
+      justify-content:center;
+      padding:40px 20px;
+      box-sizing:border-box;
+    }
+
+    /* Page container */
+    .page {
+      width:100%;
+      max-width:1100px;
+      color:#0b1730;
+    }
+
+    header{margin-bottom:14px}
+    h1{color:var(--accent-2);margin:0;font-size:26px;letter-spacing:-0.2px}
+    p{color:var(--muted);margin:6px 0 18px}
+
+  /* layout: left column fixed width for readable forms, aside column for controls */
+  .grid{display:grid;grid-template-columns:640px 360px;gap:28px;align-items:start;justify-content:center}
+
+    /* glass card style for form/panels */
+    .card{
+      background:var(--card);
+      border-radius:12px;
+      padding:18px;
+      box-shadow:0 8px 30px rgba(2,6,23,0.45);
+      border:1px solid var(--glass-border);
+      backdrop-filter: blur(6px) saturate(120%);
+    }
+
+    .form{ /* keeps the .form class name for JS */
+      padding:20px;
+      max-width:640px;
+      margin:0 auto; /* center form controls inside left column */
+    }
+
+    label{display:block;margin-top:12px;color:#0b1730;font-size:14px}
+    input, select, textarea{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(11,23,48,0.08);box-shadow:inset 0 1px 0 rgba(255,255,255,0.6);outline:none;font-size:14px}
+    input:focus{border-color:var(--accent);box-shadow:0 6px 18px rgba(99,102,241,0.12)}
+
+    .controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    button{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#fff;border:none;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600;box-shadow:0 8px 20px rgba(55,91,210,0.18);transition:transform .12s ease, box-shadow .12s ease}
+    button:hover{transform:translateY(-2px)}
+    button:active{transform:translateY(0)}
+    button.secondary{background:transparent;color:#f8fafc;border:1px solid rgba(255,255,255,0.08);box-shadow:none;font-weight:500;padding:8px 12px}
+
+    .panel{ /* keep for aside panels */
+      margin-top:0;
+      padding:14px;
+    }
+
+    /* make aside panels visually match main cards */
+    aside .panel{ background:var(--card); border-radius:12px; border:1px solid var(--glass-border); box-shadow:0 8px 26px rgba(2,6,23,0.35); padding:16px }
+
+  .result-card{background:linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.9));padding:16px;border-radius:12px;border:1px solid rgba(11,23,48,0.04);box-shadow:0 6px 20px rgba(2,6,23,0.12);width:100%;box-sizing:border-box}
+
     .small{font-size:13px;color:var(--muted)}
-    .saved-list{max-height:260px;overflow:auto}
-    .scenario-item{padding:8px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center}
-    .btn-link{background:transparent;border:none;color:var(--accent);cursor:pointer;text-decoration:underline;padding:0}
+    .saved-list{max-height:260px;overflow:auto;margin-top:8px}
+    .scenario-item{padding:10px;border-radius:10px;background:rgba(255,255,255,0.04);display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border:1px solid rgba(255,255,255,0.02)}
+    .btn-link{background:transparent;border:none;color:var(--accent-2);cursor:pointer;text-decoration:underline;padding:0;font-weight:600}
+
     pre#result{white-space:pre-wrap;background:transparent;padding:0;margin:0}
-    @media (max-width:900px){.grid{grid-template-columns:1fr}}
+
+    /* result grid */
+    .result-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .metric{background:rgba(11,23,48,0.03);padding:12px;border-radius:8px}
+
+  /* result wrapper centers the result card under the grid and matches width */
+  .result-wrapper{max-width:1000px;margin:18px auto 48px;display:block}
+
+    /* responsive tweaks */
+    @media (max-width:1000px){
+      .grid{grid-template-columns:1fr}
+      .page{padding-bottom:40px}
+      button.secondary{border:1px solid rgba(11,23,48,0.06);color:#0b1730;background:transparent}
+    }
   </style>
 </head>
 <body>
-  <h1>Invoicing ROI Simulator</h1>
-  <p>Fill the form and click Calculate. Save scenarios and generate an email-gated HTML report.</p>
+  <div class="page">
+    <h1>Invoicing ROI Simulator</h1>
+    <p>Fill the form and click Calculate. Save scenarios and generate an email-gated HTML report.</p>
 
   <div class="grid">
-    <div class="form">
+    <div class="form card">
       <label>Scenario name
         <input id="scenario_name" type="text" placeholder="Q4_Pilot" />
       </label>
 
   <label>Monthly invoice volume
-    <input id="monthly_invoice_volume" type="number" placeholder="" />
+    <input id="monthly_invoice_volume" type="number" placeholder="e.g. 2000" />
   </label>
 
   <label>Number of AP staff
-    <input id="num_ap_staff" type="number" placeholder="" />
+    <input id="num_ap_staff" type="number" placeholder="e.g. 3" />
   </label>
 
   <label>Avg hours per invoice (e.g. 0.17 = 10 minutes)
@@ -75,7 +154,7 @@
     </div>
 
     <aside>
-      <div class="panel">
+      <div class="panel card">
         <strong>Generate Report</strong>
         <div class="small" style="margin-top:6px">Enter an email to receive or preview the HTML report</div>
         <label style="margin-top:10px">Email for report
@@ -86,7 +165,7 @@
         </div>
       </div>
 
-      <div class="panel" style="margin-top:12px">
+  <div class="panel card" style="margin-top:12px">
         <strong>Saved Scenarios</strong>
         <div class="small">Click Load to populate the form</div>
         <div id="saved_list" class="saved-list" style="margin-top:8px">(none)</div>
@@ -94,11 +173,15 @@
     </aside>
   </div>
 
-  <h2 style="margin-top:20px">Result</h2>
-  <div class="result-card">
-  <div id="result">(no result yet)</div>
-  <div id="chart" style="margin-top:12px"></div>
+  <div class="result-wrapper">
+    <h2 style="margin-top:20px">Result</h2>
+    <div class="result-card">
+      <div id="result">(no result yet)</div>
+      <div id="chart" style="margin-top:12px"></div>
+    </div>
   </div>
+
+  </div> <!-- /.page -->
 
   <template id="scenario-template">
     <div class="scenario-item">
